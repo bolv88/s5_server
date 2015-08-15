@@ -1,11 +1,16 @@
 defmodule S5Server do
   use Application
+  use Supervisor
 
   # See http://elixir-lang.org/docs/stable/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, [listen_host, listen_port]) do
-    import Supervisor.Spec, warn: false
+    #import Supervisor.Spec, warn: false
 
+    Supervisor.start_link(__MODULE__, [listen_host, listen_port])
+  end
+
+  def init( [listen_host, listen_port]) do
     # listen 
     {:ok, socket} = :gen_tcp.listen(listen_port,  [
       :binary, 
@@ -27,12 +32,13 @@ defmodule S5Server do
     # for other strategies and supported options
     opts = [strategy: :simple_one_for_one, name: S5Server.Supervisor]
     {:ok, super_pid} = Supervisor.start_link(children, opts)
-
-
+    r  = supervise(children, opts)
+    :observer.start()
     start_child()
+    r
+
     #send self(), :start_child
 
-    #:observer.start()
     #loop()
   end
 

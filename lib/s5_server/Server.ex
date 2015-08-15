@@ -3,10 +3,12 @@ defmodule S5Server.Server do
   use GenServer
 
 
+  @timeout 5000
+
   def start_link(state, opts) do
     Logger.debug "start link"
     output [state, opts]
-    GenServer.start(__MODULE__, state, opts)
+    GenServer.start_link(__MODULE__, state, opts)
   end
 
   def init([socket, super_id]) do
@@ -27,6 +29,7 @@ defmodule S5Server.Server do
     output [:init_timeout, state]
     {:ok, client} = :gen_tcp.accept(socket)
     #send super_id, :start_child
+    S5Server.start_child()
     S5Server.start_child()
     {:noreply, %S5Server.State{state|client: client}}
   end
@@ -62,23 +65,23 @@ defmodule S5Server.Server do
     {:noreply, state}
   end
 
-  #def handle_info(:timeout, state = %S5Server.State{server: server, client: client}) do
-  #  output ["timeout not init", state]
-  #  try do
-  #    :gen_tcp.close(server)
-  #  catch
-  #    _ -> :pass
-  #  end
+  def handle_info(:timeout, state = %S5Server.State{server: server, client: client}) do
+    output ["timeout not init", state]
+    try do
+      :gen_tcp.close(server)
+    catch
+      _ -> :pass
+    end
 
-  #  try do
-  #    :gen_tcp.close(client)
-  #  catch
-  #    _ -> :pass
-  #  end
+    try do
+      :gen_tcp.close(client)
+    catch
+      _ -> :pass
+    end
 
-  #  #{:stop, "timeout not init", state}
-  #  {:noreply, state}
-  #end
+    {:stop, :normal, state}
+    #{:noreply, state}
+  end
 
   def handle_info(
     {:tcp, client, bin}, 
@@ -86,7 +89,7 @@ defmodule S5Server.Server do
   ) do
     output([:from_client, bin])
     :gen_tcp.send(server, bin_decode(bin))
-    {:noreply, state}
+    {:noreply, state, @timeout}
   end
 
   def handle_info(
@@ -95,7 +98,7 @@ defmodule S5Server.Server do
   ) do
     output([:from_server, bin])
     :gen_tcp.send(client, bin_decode(bin))
-    {:noreply, state}
+    {:noreply, state, @timeout}
   end
 
   def handle_info(
@@ -104,9 +107,9 @@ defmodule S5Server.Server do
   ) do
     :gen_tcp.close(server)
     output "client close"
-    #{:stop, "client close", state}
-    GenServer.call(self(), :to_close)
-    {:noreply, state}
+    {:stop, :normal, state}
+    #GenServer.call(self(), :to_close)
+    #{:noreply, state}
   end
 
   def handle_info(
@@ -115,9 +118,9 @@ defmodule S5Server.Server do
   ) do
     :gen_tcp.close(client)
     output "server close"
-    #{:stop, "server close", state}
-    GenServer.call(self(), :to_close)
-    {:noreply, state}
+    {:stop, :normal, state}
+    #GenServer.call(self(), :to_close)
+    #{:noreply, state}
   end
 
   def handle_info(info, state) do
@@ -127,7 +130,7 @@ defmodule S5Server.Server do
 
   
   def terminate(reason, state) do
-    IO.inspect [:terminate, reason, state]
+    IO.inspect [:terminate, self(), reason, state]
     :ok
   end
 
