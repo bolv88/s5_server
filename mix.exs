@@ -14,7 +14,12 @@ defmodule S5Server.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger]]
+    [
+      applications: [:logger, 
+        #:sasl
+      ],
+      mod: {S5Server, ["127.0.0.1", 9876]}
+    ]
   end
 
   # Dependencies can be Hex packages:
