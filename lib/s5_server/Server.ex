@@ -2,7 +2,6 @@ defmodule S5Server.Server do
   require Logger
   use GenServer
 
-  @timeout 5000
 
   def start_link(state, opts) do
     Logger.debug "start link"
@@ -21,7 +20,7 @@ defmodule S5Server.Server do
   end
 
   def handle_call(:to_close, state) do
-    {:noreply, state, 0}
+    {:noreply, state, 1000}
   end
 
   def handle_info(:timeout, state = %S5Server.State{client: nil, socket: socket, super_id: _super_id}) do
@@ -63,23 +62,23 @@ defmodule S5Server.Server do
     {:noreply, state}
   end
 
-  def handle_info(:timeout, state = %S5Server.State{server: server, client: client}) do
-    output ["timeout not init", state]
-    try do
-      :gen_tcp.close(server)
-    catch
-      _ -> :pass
-    end
+  #def handle_info(:timeout, state = %S5Server.State{server: server, client: client}) do
+  #  output ["timeout not init", state]
+  #  try do
+  #    :gen_tcp.close(server)
+  #  catch
+  #    _ -> :pass
+  #  end
 
-    try do
-      :gen_tcp.close(client)
-    catch
-      _ -> :pass
-    end
+  #  try do
+  #    :gen_tcp.close(client)
+  #  catch
+  #    _ -> :pass
+  #  end
 
-    #{:stop, "timeout not init", state}
-    {:noreply, state}
-  end
+  #  #{:stop, "timeout not init", state}
+  #  {:noreply, state}
+  #end
 
   def handle_info(
     {:tcp, client, bin}, 
