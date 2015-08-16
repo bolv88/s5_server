@@ -1,12 +1,10 @@
 defmodule S5Server.Server do
-  require Logger
   use GenServer
 
 
   @timeout 5000
 
   def start_link(state, opts) do
-    Logger.debug "start link"
     output [state, opts]
     GenServer.start_link(__MODULE__, state, opts)
   end
@@ -26,12 +24,21 @@ defmodule S5Server.Server do
   end
 
   def handle_info(:timeout, state = %S5Server.State{client: nil, socket: socket, super_id: _super_id}) do
-    output [:init_timeout, state]
-    {:ok, client} = :gen_tcp.accept(socket)
-    #send super_id, :start_child
-    S5Server.start_child()
-    S5Server.start_child()
+    # output [:init_timeout, state]
+    # {:ok, client} = :gen_tcp.accept(socket)
+    {:ok, client} = loop_accept(socket)
+    {:ok, pid} = S5Server.Supervisor.start_child()
+    IO.inspect {self(), "=>", pid}
     {:noreply, %S5Server.State{state|client: client}}
+  end
+
+  def loop_accept(socket) do
+    case :gen_tcp.accept(socket) do
+      {:ok, client} ->
+        {:ok, client}
+      _other ->
+        loop_accept(socket)
+    end
   end
 
   # client connect
@@ -66,7 +73,7 @@ defmodule S5Server.Server do
   end
 
   def handle_info(:timeout, state = %S5Server.State{server: server, client: client}) do
-    output ["timeout not init", state]
+    #output ["timeout not init", state]
     try do
       :gen_tcp.close(server)
     catch
@@ -87,7 +94,7 @@ defmodule S5Server.Server do
     {:tcp, client, bin}, 
     state = %S5Server.State{client: client, server: server}
   ) do
-    output([:from_client, bin])
+    #output([:from_client, bin])
     :gen_tcp.send(server, bin_decode(bin))
     {:noreply, state, @timeout}
   end
@@ -96,7 +103,7 @@ defmodule S5Server.Server do
     {:tcp, server, bin}, 
     state = %S5Server.State{client: client, server: server}
   ) do
-    output([:from_server, bin])
+    #output([:from_server, bin])
     :gen_tcp.send(client, bin_decode(bin))
     {:noreply, state, @timeout}
   end
@@ -142,7 +149,7 @@ defmodule S5Server.Server do
   #end
 
   defp output(params) do
-    IO.inspect params
+    #IO.inspect params
   end
 
   defp bin_encode(bin) do
